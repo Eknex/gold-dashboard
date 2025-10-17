@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark"> <!-- Le mode sombre est activé par défaut -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi de Métaux Précieux</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+
+    <style>
+        :root { --gold: #FFD700; --silver: #C0C0C0; }
+        html.light { --tw-bg-opacity: 1; background-color: rgb(255 255 255 / var(--tw-bg-opacity)); color: rgb(31 41 55 / 1);}
+        html.dark { --tw-bg-opacity: 1; background-color: rgb(17 24 39 / var(--tw-bg-opacity)); color: rgb(243 244 246 / 1); }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            @apply bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .card {
+            @apply bg-gray-50 dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700;
+        }
+        .form-input { 
+            @apply bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2.5 text-gray-800 dark:text-white;
+            transition: all 0.3s ease-in-out;
+        }
+        .form-input:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+            @apply border-blue-500;
+        }
+        html.dark .form-input { color-scheme: dark; } /* Corrige le style des inputs en mode sombre */
+
+        .tab-btn { @apply px-4 py-2 rounded-lg font-semibold transition-colors duration-200; }
+        .tab-btn.active { @apply bg-blue-600 text-white; }
+        .tab-btn:not(.active) { @apply text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700; }
+        
+        .term-btn { @apply px-3 py-1 text-xs font-medium rounded-md transition-colors duration-200; }
+        .term-btn.active { @apply bg-blue-600 text-white; }
+        .term-btn:not(.active) { @apply bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600; }
+
+
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .saving-indicator { transition: opacity 0.3s; }
+
+        .theme-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .theme-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4b5563; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #3b82f6; }
+        input:checked + .slider:before { transform: translateX(26px); }
+        
+        /* Flatpickr Dark Theme */
+        .flatpickr-calendar.dark-theme {
+            @apply bg-gray-800 border-gray-700 text-white shadow-lg;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-month {
+            @apply text-white;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-weekday {
+            @apply text-gray-300;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-day {
+            @apply text-gray-300;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-day:hover,
+        .flatpickr-calendar.dark-theme .flatpickr-day:focus {
+            @apply bg-gray-700 border-gray-600;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-day.selected,
+        .flatpickr-calendar.dark-theme .flatpickr-day.startRange,
+        .flatpickr-calendar.dark-theme .flatpickr-day.endRange {
+            @apply bg-blue-600 border-blue-600 text-white;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-day.today {
+             @apply border-blue-500;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-time {
+             @apply bg-gray-800 border-t border-gray-700;
+        }
+        .flatpickr-calendar.dark-theme .flatpickr-time input:hover,
+        .flatpickr-calendar.dark-theme .flatpickr-time .flatpickr-am-pm:hover {
+            @apply bg-gray-700;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .toggle-slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .toggle-slider:before {
+            -webkit-transform: translateX(16px);
+            -ms-transform: translateX(16px);
+            transform: translateX(16px);
+        }
+        .action-dropdown-content {
+            @apply hidden absolute right-0 -mt-2 w-32 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-20;
+        }
+        .action-dropdown-content.show {
+            display: block;
+        }
+    </style>
+    <!-- Sécurité minimale -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+    <script>
+    // Juste ajouter timeout aux fetch existants
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        const [url, options = {}] = args;
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+        return originalFetch(url, {
+            ...options,
+            signal: controller.signal
+        }).finally(() => clearTimeout(id));
+    };
+
+    // Fonction de sanitisation disponible
+    window.sanitize = (html) => DOMPurify.sanitize(html);
+
+    // Log des erreurs
+    window.addEventListener('error', (e) => console.error('JS Error:', e));
+    </script>
+</head>
+<body class="antialiased">
+
+    <!-- Écran de verrouillage par PIN -->
+    <div id="pin-screen" class="fixed inset-0 bg-gray-100 dark:bg-gray-900 bg-opacity-95 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="w-full max-w-xs text-center">
+            <i data-lucide="shield-check" class="mx-auto mb-4 text-blue-500 h-12 w-12"></i>
+            <h2 id="pin-title" class="text-2xl font-bold mb-2">Vérification...</h2>
+            <p id="pin-subtitle" class="text-gray-600 dark:text-gray-400 mb-6">Connexion au serveur.</p>
+            <div class="flex justify-center gap-3 mb-4">
+                <input type="password" maxlength="1" class="pin-input h-14 w-12 text-center text-3xl font-semibold bg-gray-200 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 transition">
+                <input type="password" maxlength="1" class="pin-input h-14 w-12 text-center text-3xl font-semibold bg-gray-200 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 transition">
+                <input type="password" maxlength="1" class="pin-input h-14 w-12 text-center text-3xl font-semibold bg-gray-200 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 transition">
+                <input type="password" maxlength="1" class="pin-input h-14 w-12 text-center text-3xl font-semibold bg-gray-200 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 transition">
+            </div>
+            <p id="pin-error" class="text-red-500 h-5"></p>
+        </div>
+    </div>
+
+    <!-- Contenu principal -->
+    <div id="app-content" class="hidden">
+        <div class="container mx-auto p-4 md:p-8">
+            <header class="flex flex-wrap justify-between items-center mb-6 gap-4">
+                <h1 class="text-3xl font-bold">Tableau de Bord Métaux Précieux</h1>
+                <div class="flex items-center gap-4">
+                    <div id="saving-indicator" class="saving-indicator opacity-0 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span id="saving-status">Enregistré</span>
+                    </div>
+                    <a href="https://buymeacoffee.com/eknex" target="_blank" class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
+                        <span class="text-xl">☕</span>
+                        <span class="hidden sm:inline">Soutenir</span>
+                    </a>
+                    <div id="spot-price-header" class="text-sm text-gray-500 dark:text-gray-400">
+                        Dernier cours enregistré (<span id="spot-time">...</span>): 
+                        <span class="font-semibold text-yellow-500">Or: <span id="spot-gold">...</span> €/<span class="unit-display">oz</span></span> | 
+                        <span class="font-semibold text-gray-500 dark:text-gray-300">Argent: <span id="spot-silver">...</span> €/<span class="unit-display">oz</span></span>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="mb-8 border-b border-gray-200 dark:border-gray-700">
+                <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                    <button data-tab="dashboard" class="tab-btn active">Tableau de bord</button>
+                    <button data-tab="assets" class="tab-btn">Inventaire</button>
+                    <button data-tab="price-history" class="tab-btn">Suivi des prix</button>
+                    <button data-tab="coins" class="tab-btn">Gestion des Pièces</button>
+                    <button data-tab="settings" class="tab-btn">Paramètres</button>
+                </nav>
+            </div>
+
+            <div id="tab-content">
+                <div id="dashboard-tab" class="tab-pane">
+                    <div id="summary-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"></div>
+                    <div class="space-y-6">
+                        <div class="card p-6 flex flex-col h-[450px]">
+                            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                                <h3 class="text-lg font-medium">Évolution du portefeuille</h3>
+                                <div id="portfolio-term-selector" class="space-x-2">
+                                    <button class="term-btn active" data-term="30">1M</button>
+                                    <button class="term-btn" data-term="180">6M</button>
+                                    <button class="term-btn" data-term="365">1A</button>
+                                    <button class="term-btn" data-term="all">Tout</button>
+                                </div>
+                            </div>
+                            <div class="relative flex-grow">
+                                <canvas id="portfolioEvolutionChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="card p-6 flex flex-col h-[450px]">
+                                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                                    <h3 class="text-lg font-medium">Suivi du cours de l'Or</h3>
+                                    <div id="gold-term-selector" class="space-x-2">
+                                        <button class="term-btn active" data-term="30">1M</button>
+                                        <button class="term-btn" data-term="180">6M</button>
+                                        <button class="term-btn" data-term="365">1A</button>
+                                        <button class="term-btn" data-term="all">Tout</button>
+                                    </div>
+                                </div>
+                                <div class="relative flex-grow">
+                                    <canvas id="goldHistoryChart"></canvas>
+                                </div>
+                            </div>
+                             <div class="card p-6 flex flex-col h-[450px]">
+                                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                                    <h3 class="text-lg font-medium">Suivi du cours de l'Argent</h3>
+                                    <div id="silver-term-selector" class="space-x-2">
+                                        <button class="term-btn active" data-term="30">1M</button>
+                                        <button class="term-btn" data-term="180">6M</button>
+                                        <button class="term-btn" data-term="365">1A</button>
+                                        <button class="term-btn" data-term="all">Tout</button>
+                                    </div>
+                                </div>
+                                <div class="relative flex-grow">
+                                    <canvas id="silverHistoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="card p-6 flex flex-col h-[450px]">
+                                <h3 class="text-lg font-medium mb-4 flex-shrink-0">Répartition par Matière (en valeur)</h3>
+                                <div class="relative flex-grow">
+                                    <canvas id="materialDistributionChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="card p-6 flex flex-col h-[450px]">
+                                <h3 class="text-lg font-medium mb-4 flex-shrink-0">Répartition par Référence (en quantité)</h3>
+                                <div class="relative flex-grow">
+                                    <canvas id="assetCountChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="assets-tab" class="tab-pane hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Inventaire</h2>
+                        <button id="add-asset-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition duration-300">
+                            <i data-lucide="plus-circle" class="w-5 h-5"></i> Ajouter un actif
+                        </button>
+                    </div>
+                    <div id="asset-list-container" class="card overflow-hidden"></div>
+                </div>
+
+                <div id="price-history-tab" class="tab-pane hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 id="price-history-title" class="text-2xl font-bold">Historique des Cours</h2>
+                        <div class="flex items-center gap-4">
+                            <button id="add-today-price-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition duration-300">
+                                <i data-lucide="download-cloud" class="w-5 h-5"></i> Ajouter le cours du jour
+                            </button>
+                            <button id="add-price-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition duration-300">
+                                <i data-lucide="plus-circle" class="w-5 h-5"></i> Ajouter une entrée
+                            </button>
+                        </div>
+                    </div>
+                    <div id="price-history-container" class="card overflow-hidden"></div>
+                </div>
+
+                <div id="coins-tab" class="tab-pane hidden">
+                     <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Bibliothèque de Pièces</h2>
+                        <button id="add-coin-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition duration-300">
+                            <i data-lucide="plus-circle" class="w-5 h-5"></i> Ajouter une pièce
+                        </button>
+                    </div>
+                    <div id="coin-list-container" class="card overflow-hidden"></div>
+                </div>
+
+                <div id="settings-tab" class="tab-pane hidden">
+                     <h2 class="text-2xl font-bold mb-6">Paramètres</h2>
+                    <div class="space-y-8 max-w-2xl">
+                        <div>
+                            <h3 class="text-lg font-semibold">Unités</h3>
+                            <p class="text-gray-600 dark:text-gray-400 mb-2">Choisissez l'unité pour l'affichage des cours.</p>
+                            <select id="unit-select" class="form-input w-full md:w-1/2"></select>
+                        </div>
+                         <div>
+                            <h3 class="text-lg font-semibold">Affichage des colonnes de l'inventaire</h3>
+                            <div class="card p-4">
+                               <div id="column-settings-container" class="grid grid-cols-2 gap-x-6 gap-y-3">
+                                   <!-- Le contenu est généré par JS -->
+                               </div>
+                               <div class="border-t border-gray-200 dark:border-gray-700 mt-4 pt-3 flex gap-2">
+                                    <button id="show-all-cols" class="text-xs bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 px-2 py-1 rounded w-full">Tout afficher</button>
+                                    <button id="hide-all-cols" class="text-xs bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 px-2 py-1 rounded w-full">Ne rien afficher</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                           <h3 class="text-lg font-semibold">Apparence</h3>
+                           <div class="flex items-center justify-between p-4 card">
+                               <span class="text-gray-600 dark:text-gray-400">Activer le mode sombre</span>
+                               <label class="theme-switch">
+                                   <input type="checkbox" id="theme-toggle">
+                                   <span class="slider"></span>
+                               </label>
+                           </div>
+                        </div>
+                        <div>
+                           <h3 class="text-lg font-semibold">Gestion des données</h3>
+                           <p class="text-gray-600 dark:text-gray-400 mb-2">Sauvegardez, restaurez ou supprimez vos données.</p>
+                           <div class="flex flex-wrap gap-4">
+                               <button id="export-data-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
+                                    <i data-lucide="download" class="w-5 h-5"></i> Exporter
+                               </button>
+                               <button id="import-data-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
+                                    <i data-lucide="upload" class="w-5 h-5"></i> Importer
+                               </button>
+                               <input type="file" id="import-file-input" class="hidden" accept=".json">
+                               <button id="clear-data-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
+                                    <i data-lucide="trash-2" class="w-5 h-5"></i> Vider les données
+                               </button>
+                           </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold">Informations Techniques</h3>
+                            <div class="card p-4 text-sm space-y-2">
+                                <p class="text-gray-600 dark:text-gray-400">Les fichiers de données (<code class="text-xs">data.json</code>, <code class="text-xs">pin.hash</code>) sont stockés dans le même dossier que <code class="text-xs">index.html</code>.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold">Historique des versions</h3>
+                            <div id="version-history" class="card p-4 space-y-3 text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer id="footer" class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm"></footer>
+    </div>
+    
+    <!-- Modales -->
+    <div id="asset-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 flex items-center justify-center backdrop-blur-sm hidden overflow-y-auto p-4"></div>
+    <div id="coin-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 flex items-center justify-center backdrop-blur-sm hidden overflow-y-auto p-4"></div>
+    <div id="price-history-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 flex items-center justify-center backdrop-blur-sm hidden overflow-y-auto p-4"></div>
+    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center backdrop-blur-sm hidden"></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- CONSTANTES ET ÉTAT ---
+        const SETTINGS_STORAGE_KEY = 'precious_metals_tracker_settings';
+        const OUNCE_IN_GRAMS = 31.1034768;
+        
+        let state = { 
+            assets: [], 
+            coins: [],
+            priceHistory: [],
+            pinHash: null, 
+            serverPinIsSet: false,
+            settings: { 
+                theme: 'dark', 
+                unit: 'oz',
+                portfolioTerm: 'all',
+                goldTerm: '30', 
+                silverTerm: '30',
+                sortColumn: 'date',
+                sortDirection: 'desc',
+                priceHistorySort: { column: 'date', direction: 'desc' },
+                visibleColumns: {
+                    name: true, type: true, date: true, totalGrossWeight: true, totalFineWeight: true, purchaseLocation: true, sealNumber: false,
+                    quantity: true, totalCost: true, currentValue: true, plusValue: true, actions: true
+                }
+            }
+        };
+        
+        let saveTimeout, confirmCallback = null;
+        let portfolioEvolutionChart, assetCountChart, materialDistributionChart, goldHistoryChart, silverHistoryChart;
+
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => document.querySelectorAll(selector);
+
+        async function init() {
+            renderVersionHistory();
+            loadSettings();
+            applyTheme();
+            
+            if (window.location.protocol === 'blob:') {
+                $('#footer').innerHTML = `<p><strong>Mode Aperçu :</strong> Le PIN est désactivé et les données ne sont pas sauvegardées.</p>`;
+                $('#pin-screen').classList.add('hidden');
+                $('#app-content').classList.remove('hidden');
+                initializeUI();
+                renderAll();
+            } else {
+                 $('#footer').innerHTML = `<p>Les données sont stockées sur votre serveur.</p>`;
+                 initializeUI();
+                 await checkPinStatus();
+            }
+        }
+        
+        function initializeUI() {
+            setupEventListeners();
+            renderColumnToggleMenu();
+            lucide.createIcons();
+        }
+
+        async function checkPinStatus() {
+            try {
+                const response = await apiRequest({ action: 'status' });
+                if (!response.writable) {
+                    showPinError('Erreur de Permission', 'Le serveur ne peut pas écrire dans ce dossier.<br>Veuillez corriger les permissions sur votre serveur Unraid.');
+                    $$('.pin-input').forEach(input => input.disabled = true);
+                    return;
+                }
+
+                state.serverPinIsSet = response.pinSet;
+                $('#pin-title').textContent = state.serverPinIsSet ? 'Entrez votre PIN' : 'Définir votre PIN';
+                $('#pin-subtitle').textContent = state.serverPinIsSet ? 'Pour accéder à vos données.' : 'Ce code protégera l\'accès à cette interface.';
+                $$('.pin-input')[0].focus();
+            } catch (e) {
+                showPinError('Erreur de connexion', 'Impossible de contacter le serveur. Vérifiez la console.');
+                console.error("Erreur de connexion à l'API:", e);
+            }
+        }
+        
+        function showPinError(title, subtitle) {
+            $('#pin-title').textContent = title;
+            $('#pin-subtitle').innerHTML = subtitle;
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+            if (savedSettings) {
+                const parsed = JSON.parse(savedSettings);
+                if (parsed.visibleColumns) {
+                    parsed.visibleColumns = { ...state.settings.visibleColumns, ...parsed.visibleColumns };
+                }
+                 if (!parsed.priceHistorySort) {
+                    parsed.priceHistorySort = { column: 'date', direction: 'desc' };
+                }
+                state.settings = { ...state.settings, ...parsed };
+            }
+            $('#unit-select').innerHTML = `<option value="g">Euro par Gramme (€/g)</option><option value="oz">Euro par Once (€/oz)</option><option value="kg">Euro par Kilo (€/kg)</option>`;
+            $('#unit-select').value = state.settings.unit;
+            $('#theme-toggle').checked = state.settings.theme === 'dark';
+        }
+
+        function saveSettings() {
+            localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
+        }
+        
+        function applyTheme() {
+            document.documentElement.classList.toggle('dark', state.settings.theme === 'dark');
+            document.documentElement.classList.toggle('light', state.settings.theme === 'light');
+        }
+
+        function toggleTheme() {
+            state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+            applyTheme();
+            saveSettings();
+            renderCharts(); 
+        }
+        
+        async function handlePinEntry(enteredPin) {
+            try {
+                const action = state.serverPinIsSet ? 'login' : 'set_pin';
+                const response = await apiRequest({ action, pin: enteredPin });
+
+                if (response.success) {
+                    state.pinHash = response.pinHash;
+                    await unlockApp();
+                } else {
+                    $('#pin-error').textContent = response.error || 'PIN incorrect.';
+                    $$('.pin-input').forEach(input => input.value = '');
+                    $$('.pin-input')[0].focus();
+                }
+            } catch (e) {
+                 $('#pin-error').textContent = 'Erreur serveur.';
+            }
+        }
+        
+        async function unlockApp() {
+            $('#pin-screen').classList.add('hidden');
+            $('#app-content').classList.remove('hidden');
+            await loadData();
+            await addTodaysPrice(false);
+            await loadData(); 
+            renderAll();
+        }
+
+        async function apiRequest(payload) {
+            const response = await fetch('api.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+            return await response.json();
+        }
+
+        async function saveData() {
+            clearTimeout(saveTimeout);
+            $('#saving-status').textContent = 'Sauvegarde...';
+            $('#saving-indicator').classList.remove('opacity-0');
+            
+            try {
+                const payload = { assets: state.assets, coins: state.coins, priceHistory: state.priceHistory };
+                await apiRequest({ action: 'save_data', pinHash: state.pinHash, payload });
+                $('#saving-status').textContent = 'Enregistré';
+            } catch (error) {
+                console.error('Erreur de sauvegarde:', error);
+                $('#saving-status').textContent = 'Échec';
+            } finally {
+                saveTimeout = setTimeout(() => $('#saving-indicator').classList.add('opacity-0'), 2000);
+            }
+        }
+
+        async function loadData() {
+            try {
+                const data = await apiRequest({ action: 'get_data', pinHash: state.pinHash });
+                state.assets = data.assets || [];
+                state.coins = data.coins || [];
+                state.priceHistory = data.priceHistory || [];
+            } catch (error) {
+                console.error('Erreur de chargement:', error);
+                showConfirmModal("Impossible de charger les données. La session a peut-être expiré.", () => location.reload(), "Recharger");
+            }
+        }
+
+        function renderAll() {
+            if ($('#app-content').classList.contains('hidden')) return;
+            renderSummaryCards();
+            renderAssetList();
+            renderPriceHistoryList();
+            renderCoinList();
+            renderCharts();
+            updateSpotPriceDisplay();
+            lucide.createIcons();
+        }
+        
+        function getFineWeight(asset) { return (asset.grossWeight || 0) * ((asset.purity || 1000) / 1000); }
+        
+        function convertPriceByUnit(pricePerGram, unit) {
+            if (unit === 'g') return pricePerGram;
+            if (unit === 'oz') return pricePerGram * OUNCE_IN_GRAMS;
+            if (unit === 'kg') return pricePerGram * 1000;
+            return 0;
+        }
+
+        function getPriceForDate(metal, dateStr) {
+            let closestEntry = null;
+            if (!state.priceHistory) return 0;
+            const sortedHistory = [...state.priceHistory].sort((a,b) => new Date(a.date) - new Date(b.date));
+            for (const entry of sortedHistory) {
+                if (entry.date <= dateStr) {
+                    closestEntry = entry;
+                } else {
+                    break;
+                }
+            }
+            if (!closestEntry || !closestEntry[metal]) return 0;
+            return closestEntry[metal] / OUNCE_IN_GRAMS; // Return price per gram
+        }
+
+        function getCurrentValue(asset) {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const pricePerGram = getPriceForDate(asset.type, todayStr);
+            return (asset.quantity * getFineWeight(asset)) * pricePerGram;
+        }
+
+        function updateSpotPriceDisplay() {
+            if (!state.priceHistory || state.priceHistory.length === 0) {
+                $('#spot-price-header').innerHTML = `<span class="text-sm text-gray-500 dark:text-gray-400">Aucun historique de prix trouvé. Ajoutez une entrée.</span>`;
+                return;
+            }
+            const lastEntry = state.priceHistory[state.priceHistory.length - 1];
+
+            const goldPricePerGram = (lastEntry.gold || 0) / OUNCE_IN_GRAMS;
+            const silverPricePerGram = (lastEntry.silver || 0) / OUNCE_IN_GRAMS;
+            const unit = state.settings.unit;
+            
+            $('#spot-price-header').innerHTML = `Dernier cours enregistré (<span id="spot-time"></span>): 
+                        <span class="font-semibold text-yellow-500">Or: <span id="spot-gold"></span> €/<span class="unit-display"></span></span> | 
+                        <span class="font-semibold text-gray-500 dark:text-gray-300">Argent: <span id="spot-silver"></span> €/<span class="unit-display"></span></span>`;
+
+            $$('.unit-display').forEach(el => el.textContent = unit);
+            $('#spot-gold').textContent = convertPriceByUnit(goldPricePerGram, unit).toFixed(2);
+            $('#spot-silver').textContent = convertPriceByUnit(silverPricePerGram, unit).toFixed(2);
+            $('#spot-time').textContent = new Date(lastEntry.date+'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+        
+        function renderVersionHistory() {
+             const versions = [
+                { version: "4.0", changes: ["Déplacement de la gestion des colonnes dans les paramètres."] },
+                { version: "3.9", changes: ["Correction du bug d'affichage des prix et graphiques.", "Menu des colonnes de l'inventaire rendu compact."] },
+                { version: "3.8", changes: ["Menu déroulant pour les colonnes.", "Tri ajouté à l'historique des prix."] },
+                { version: "3.7", changes: ["Menu déroulant pour les colonnes de l'inventaire.", "Ajout du tri sur l'historique des prix."] },
+                { version: "3.6", changes: ["Ajout de tuiles de valeur par matière sur le tableau de bord."] },
+                { version: "3.5", changes: ["Ajout du sélecteur de période pour le graphique d'évolution.", "Ajout des colonnes de poids dans l'inventaire.", "Bouton d'ajout rapide du cours du jour."] },
+             ];
+             const container = $('#version-history');
+             if(container) container.innerHTML = versions.map(v => `<div><p><strong>Version ${v.version}</strong></p><ul class="list-disc list-inside text-gray-600 dark:text-gray-400 pl-4">${v.changes.map(c => `<li>${c}</li>`).join('')}</ul></div>`).join('');
+        }
+        
+        async function addTodaysPrice(showConfirmation = true) {
+            if(showConfirmation) showConfirmModal("Récupération du cours du jour...", null, "OK", "bg-blue-600", false);
+            try {
+                const response = await apiRequest({ action: 'update_spot_history', pinHash: state.pinHash });
+                await loadData();
+                renderAll();
+                 if(showConfirmation) {
+                    if (response.updated) {
+                         showConfirmModal("Le cours du jour a été ajouté/mis à jour avec succès.", null, "OK", "bg-green-600 hover:bg-green-700", false);
+                    } else {
+                         showConfirmModal("L'historique est déjà à jour avec le cours d'aujourd'hui.", null, "OK", "bg-blue-600", false);
+                    }
+                }
+            } catch (e) {
+                console.error("Erreur lors de l'ajout du prix du jour", e);
+                if(showConfirmation) showConfirmModal("Erreur: Impossible de récupérer le cours du jour. Le service externe est peut-être indisponible.", null, "OK", "bg-red-600 hover:bg-red-700", true);
+            }
+        }
+
+        function setupEventListeners() {
+            $$('.pin-input').forEach((input, index) => {
+                input.addEventListener('input', () => {
+                    if (input.value.length === 1 && index < 3) $$('.pin-input')[index + 1].focus();
+                    const enteredPin = Array.from($$('.pin-input')).map(i => i.value).join('');
+                    if (enteredPin.length === 4) handlePinEntry(enteredPin);
+                });
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !input.value && index > 0) $$('.pin-input')[index - 1].focus();
+                });
+            });
+
+            $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+                $$('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                $$('.tab-pane').forEach(pane => pane.classList.add('hidden'));
+                $(`#${btn.dataset.tab}-tab`).classList.remove('hidden');
+            }));
+
+            $('#theme-toggle').addEventListener('change', toggleTheme);
+            $('#unit-select').addEventListener('change', (e) => { state.settings.unit = e.target.value; saveSettings(); renderAll(); });
+            $('#add-asset-btn').addEventListener('click', () => showAssetModal());
+            $('#add-coin-btn').addEventListener('click', () => showCoinModal());
+            $('#add-price-btn').addEventListener('click', () => showPriceHistoryModal());
+            $('#add-today-price-btn').addEventListener('click', () => addTodaysPrice(true));
+            $('#export-data-btn').addEventListener('click', () => {
+                const dataStr = JSON.stringify({ assets: state.assets, coins: state.coins, priceHistory: state.priceHistory }, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = Object.assign(document.createElement('a'), { href: url, download: `inventaire_metaux_${new Date().toISOString().slice(0,10)}.json` });
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            });
+            $('#import-data-btn').addEventListener('click', () => $('#import-file-input').click());
+            $('#import-file-input').addEventListener('change', (event) => {
+                 const file = event.target.files[0]; if (!file) return;
+                 const reader = new FileReader();
+                 reader.onload = async (e) => {
+                     try {
+                         const data = JSON.parse(e.target.result);
+                         showConfirmModal('Voulez-vous vraiment remplacer vos données actuelles ? Cette action est irréversible.', async () => {
+                             state.assets = data.assets || []; state.coins = data.coins || []; state.priceHistory = data.priceHistory || [];
+                             await saveData(); renderAll(); showConfirmModal('Données importées avec succès.', null, 'OK', 'bg-green-600 hover:bg-green-700', false);
+                         }, 'Importer');
+                     } catch (error) { showConfirmModal('Erreur: Le fichier est invalide ou corrompu.', null, 'OK', 'bg-red-600 hover:bg-red-700', false); }
+                 };
+                 reader.readAsText(file);
+            });
+            $('#clear-data-btn').addEventListener('click', () => {
+                showConfirmModal('Êtes-vous sûr de vouloir supprimer TOUTES les données (inventaire, pièces, historique) ?', async () => {
+                    state.assets = []; state.coins = []; state.priceHistory = [];
+                    await saveData(); renderAll();
+                }, 'Oui, tout supprimer');
+            });
+            
+            $('#portfolio-term-selector').addEventListener('click', (e) => { 
+                if (e.target.tagName === 'BUTTON') {
+                    state.settings.portfolioTerm = e.target.dataset.term;
+                    saveSettings();
+                    $$('#portfolio-term-selector .term-btn').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    renderCharts();
+                }
+            });
+            $('#gold-term-selector').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') updateHistoricalChart('gold', e.target.dataset.term); });
+            $('#silver-term-selector').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') updateHistoricalChart('silver', e.target.dataset.term); });
+            
+            document.addEventListener('click', (e) => {
+                const openDropdowns = $$('.action-dropdown-content.show');
+                openDropdowns.forEach(dropdown => {
+                    const parent = dropdown.closest('.action-dropdown');
+                    if (parent && !parent.contains(e.target)) {
+                        dropdown.classList.remove('show');
+                    }
+                });
+            });
+        }
+        
+        function renderSummaryCards() {
+            // Filter assets by type
+            const goldAssets = state.assets.filter(a => a.type === 'gold');
+            const silverAssets = state.assets.filter(a => a.type === 'silver');
+
+            // Calculate purchase and current values for gold
+            const goldPurchaseValue = goldAssets.reduce((sum, asset) => sum + (asset.quantity * asset.price), 0);
+            const goldCurrentValue = goldAssets.reduce((sum, asset) => sum + getCurrentValue(asset), 0);
+            const goldPlusValue = goldCurrentValue - goldPurchaseValue;
+            const goldPlusValuePercent = goldPurchaseValue > 0 ? (goldPlusValue / goldPurchaseValue) * 100 : 0;
+
+            // Calculate purchase and current values for silver
+            const silverPurchaseValue = silverAssets.reduce((sum, asset) => sum + (asset.quantity * asset.price), 0);
+            const silverCurrentValue = silverAssets.reduce((sum, asset) => sum + getCurrentValue(asset), 0);
+            const silverPlusValue = silverCurrentValue - silverPurchaseValue;
+            const silverPlusValuePercent = silverPurchaseValue > 0 ? (silverPlusValue / silverPurchaseValue) * 100 : 0;
+
+            // Keep total calculations
+            const purchaseValue = goldPurchaseValue + silverPurchaseValue;
+            const currentValue = goldCurrentValue + silverCurrentValue;
+            const goldWeight = goldAssets.reduce((sum, a) => sum + (a.quantity * getFineWeight(a)), 0);
+            const silverWeight = silverAssets.reduce((sum, a) => sum + (a.quantity * getFineWeight(a)), 0);
+            const plusValue = currentValue - purchaseValue;
+            const plusValuePercent = purchaseValue > 0 ? (plusValue / purchaseValue) * 100 : 0;
+
+            const cards = [
+                { title: 'Valeur Actuelle Totale', value: `${currentValue.toFixed(2)} €`, sub: `${plusValue >= 0 ? '+' : ''}${plusValue.toFixed(2)} € (${plusValue >= 0 ? '+' : ''}${plusValuePercent.toFixed(2)}%)`, subColor: plusValue >= 0 ? 'text-green-400' : 'text-red-400', icon: 'gem' },
+                { title: 'Valeur Actuelle Or', value: `${goldCurrentValue.toFixed(2)} €`, sub: `${goldPlusValue >= 0 ? '+' : ''}${goldPlusValue.toFixed(2)} € (${goldPlusValue >= 0 ? '+' : ''}${goldPlusValuePercent.toFixed(2)}%)`, subColor: goldPlusValue >= 0 ? 'text-green-400' : 'text-red-400', icon: 'sprout', iconColor: 'text-yellow-400' },
+                { title: 'Valeur Actuelle Argent', value: `${silverCurrentValue.toFixed(2)} €`, sub: `${silverPlusValue >= 0 ? '+' : ''}${silverPlusValue.toFixed(2)} € (${silverPlusValue >= 0 ? '+' : ''}${silverPlusValuePercent.toFixed(2)}%)`, subColor: silverPlusValue >= 0 ? 'text-green-400' : 'text-red-400', icon: 'sprout', iconColor: 'text-gray-400' },
+                { title: "Coût d'Achat Total", value: `${purchaseValue.toFixed(2)} €`, icon: 'shopping-cart' },
+                { title: 'Poids Fin Or', value: `${goldWeight.toFixed(3)} g`, icon: 'database', iconColor: 'text-yellow-400' },
+                { title: 'Poids Fin Argent', value: `${silverWeight.toFixed(3)} g`, icon: 'database', iconColor: 'text-gray-400' }
+            ];
+            $('#summary-cards').innerHTML = cards.map(card => `<div class="card p-6"><div class="flex items-center justify-between"><h3 class="text-lg font-medium text-gray-600 dark:text-gray-300">${card.title}</h3><i data-lucide="${card.icon}" class="w-6 h-6 ${card.iconColor || 'text-blue-500'}"></i></div><p class="text-3xl font-bold mt-2">${card.value}</p>${card.sub ? `<p class="text-sm mt-1 ${card.subColor}">${card.sub}</p>` : ''}</div>`).join('');
+        }
+
+        function renderColumnToggleMenu() {
+            const container = $('#column-settings-container');
+            const columns = {
+                name: 'Actif', type: 'Matière', date: "Date d'achat",
+                totalGrossWeight: 'Poids Brut Total', totalFineWeight: 'Poids Fin Total',
+                purchaseLocation: 'Lieu d\'achat', sealNumber: 'N° Scellé',
+                quantity: 'Quantité', totalCost: 'Coût total', currentValue: 'Valeur Actuelle', plusValue: '+/- Value'
+            };
+            container.innerHTML = '';
+            Object.entries(columns).forEach(([key, title]) => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center justify-between cursor-pointer';
+                const span = document.createElement('span');
+                span.className = 'text-sm text-gray-700 dark:text-gray-300';
+                span.textContent = title;
+                const toggleLabel = document.createElement('label');
+                toggleLabel.className = 'toggle-switch';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = state.settings.visibleColumns[key] !== false;
+                checkbox.dataset.column = key;
+                checkbox.addEventListener('change', (e) => {
+                    state.settings.visibleColumns[key] = e.target.checked;
+                    saveSettings();
+                    renderAssetList();
+                });
+                const slider = document.createElement('span');
+                slider.className = 'toggle-slider';
+                toggleLabel.appendChild(checkbox);
+                toggleLabel.appendChild(slider);
+                label.appendChild(span);
+                label.appendChild(toggleLabel);
+                container.appendChild(label);
+            });
+             $('#show-all-cols').addEventListener('click', () => {
+                Object.keys(state.settings.visibleColumns).forEach(key => state.settings.visibleColumns[key] = true);
+                saveSettings(); renderColumnToggleMenu(); renderAssetList();
+            });
+            $('#hide-all-cols').addEventListener('click', () => {
+                Object.keys(state.settings.visibleColumns).forEach(key => state.settings.visibleColumns[key] = false);
+                state.settings.visibleColumns.name = true; // Always show name
+                saveSettings(); renderColumnToggleMenu(); renderAssetList();
+            });
+        }
+        
+        function renderAssetList() {
+            const container = $('#asset-list-container');
+            if (state.assets.length === 0) { container.innerHTML = `<p class="text-center text-gray-500 p-12">Aucun actif à afficher.</p>`; return; }
+            
+            const { sortColumn, sortDirection, visibleColumns } = state.settings;
+            const sortedAssets = [...state.assets].sort((a, b) => {
+                let valA, valB;
+                switch (sortColumn) {
+                    case 'totalCost': valA = a.quantity * a.price; valB = b.quantity * b.price; break;
+                    case 'currentValue': valA = getCurrentValue(a); valB = getCurrentValue(b); break;
+                    case 'plusValue': valA = getCurrentValue(a) - (a.quantity * a.price); valB = getCurrentValue(b) - (b.quantity * b.price); break;
+                    case 'totalGrossWeight': valA = a.quantity * a.grossWeight; valB = b.quantity * b.grossWeight; break;
+                    case 'totalFineWeight': valA = a.quantity * getFineWeight(a); valB = b.quantity * getFineWeight(b); break;
+                    default: valA = a[sortColumn]; valB = b[sortColumn];
+                }
+
+                if (typeof valA === 'string') return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                if (sortColumn === 'date') return sortDirection === 'asc' ? new Date(valA) - new Date(valB) : new Date(valB) - new Date(valA);
+                return sortDirection === 'asc' ? valA - valB : valB - valA;
+            });
+            
+            const columns = {
+                name: 'Actif', type: 'Matière', date: "Date d'achat", 
+                totalGrossWeight: 'Poids Brut T.', totalFineWeight: 'Poids Fin T.',
+                purchaseLocation: 'Lieu d\'achat', sealNumber: 'N° Scellé', 
+                quantity: 'Qté', totalCost: 'Coût total', currentValue: 'Valeur Actuelle', plusValue: '+/- Value', actions: 'Actions'
+            };
+
+            const headerHtml = Object.entries(columns).map(([key, title]) => {
+                const isSortable = key !== 'actions';
+                const sortIcon = sortColumn === key ? (sortDirection === 'asc' ? 'arrow-up' : 'arrow-down') : 'unfold-vertical';
+                const visibilityClass = visibleColumns[key] === false ? 'hidden' : '';
+                const alignmentClass = ['quantity', 'totalCost', 'currentValue', 'plusValue', 'totalGrossWeight', 'totalFineWeight'].includes(key) ? 'text-right' : 'text-left';
+                const cursorClass = isSortable ? 'cursor-pointer' : '';
+
+                return `<th scope="col" class="px-6 py-3 ${visibilityClass} ${alignmentClass} ${cursorClass}" data-sort="${key}">${title} ${isSortable ? `<i data-lucide="${sortIcon}" class="inline-block w-4 h-4 ml-1"></i>` : ''}</th>`;
+            }).join('');
+
+            const bodyHtml = sortedAssets.map(asset => {
+                const totalCost = asset.quantity * asset.price; const currentValue = getCurrentValue(asset); const plusValue = currentValue - totalCost; const plusValuePercent = totalCost > 0 ? (plusValue / totalCost) * 100 : 0; const isPositive = plusValue >= 0;
+                const totalGrossWeight = asset.quantity * (asset.grossWeight || 0);
+                const totalFineWeight = asset.quantity * getFineWeight(asset);
+
+                const cells = {
+                    name: `<td class="px-6 py-4 font-medium whitespace-nowrap ${visibleColumns.name ? '' : 'hidden'}">${asset.name}<div class="text-xs text-gray-500">${asset.millesime || ''}</div></td>`,
+                    type: `<td class="px-6 py-4 ${visibleColumns.type ? '' : 'hidden'}"><span class="px-2 py-1 text-xs font-semibold rounded-full ${asset.type === 'gold' ? 'bg-yellow-400/20 text-yellow-400' : 'bg-gray-400/20 text-gray-300'}">${asset.type === 'gold' ? 'Or' : 'Argent'}</span></td>`,
+                    date: `<td class="px-6 py-4 ${visibleColumns.date ? '' : 'hidden'}">${new Date(asset.date).toLocaleDateString('fr-FR')}</td>`,
+                    totalGrossWeight: `<td class="px-6 py-4 text-right ${visibleColumns.totalGrossWeight ? '' : 'hidden'}">${totalGrossWeight.toFixed(3)} g</td>`,
+                    totalFineWeight: `<td class="px-6 py-4 text-right ${visibleColumns.totalFineWeight ? '' : 'hidden'}">${totalFineWeight.toFixed(3)} g</td>`,
+                    purchaseLocation: `<td class="px-6 py-4 ${visibleColumns.purchaseLocation ? '' : 'hidden'}">${asset.purchaseLocation || ''}</td>`,
+                    sealNumber: `<td class="px-6 py-4 ${visibleColumns.sealNumber ? '' : 'hidden'}">${asset.sealNumber || ''}</td>`,
+                    quantity: `<td class="px-6 py-4 text-right ${visibleColumns.quantity ? '' : 'hidden'}">${asset.quantity}</td>`,
+                    totalCost: `<td class="px-6 py-4 text-right ${visibleColumns.totalCost ? '' : 'hidden'}">${totalCost.toFixed(2)} €</td>`,
+                    currentValue: `<td class="px-6 py-4 text-right ${visibleColumns.currentValue ? '' : 'hidden'}">${currentValue.toFixed(2)} €</td>`,
+                    plusValue: `<td class="px-6 py-4 text-right font-semibold ${isPositive ? 'text-green-500' : 'text-red-500'} ${visibleColumns.plusValue ? '' : 'hidden'}">${isPositive ? '+' : ''}${plusValue.toFixed(2)} €<br><span class="text-xs font-normal">(${isPositive ? '+' : ''}${plusValuePercent.toFixed(2)}%)</span></td>`,
+                    actions: `<td class="px-6 py-4 text-center relative action-dropdown ${visibleColumns.actions ? '' : 'hidden'}">
+                                <button class="p-1 text-gray-500 dark:text-gray-400 hover:text-white" data-action="toggle-menu">
+                                    <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                                </button>
+                                <div class="action-dropdown-content text-left">
+                                    <a href="#" class="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-action="edit" data-id="${asset.id}"><i data-lucide="pencil" class="w-4 h-4"></i> Modifier</a>
+                                    <a href="#" class="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/50" data-action="delete" data-id="${asset.id}"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer</a>
+                                </div>
+                            </td>`
+                };
+                return `<tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50">${Object.keys(columns).map(key => cells[key]).join('')}</tr>`;
+            }).join('');
+
+            container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-100 dark:bg-gray-700/50"><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+            
+            $('#asset-list-container thead').addEventListener('click', (e) => {
+                const header = e.target.closest('th');
+                if (header && header.dataset.sort) {
+                    const column = header.dataset.sort;
+                    if (state.settings.sortColumn === column) {
+                        state.settings.sortDirection = state.settings.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        state.settings.sortColumn = column;
+                        state.settings.sortDirection = 'desc';
+                    }
+                    saveSettings();
+                    renderAssetList();
+                }
+            });
+
+            $('#asset-list-container tbody').addEventListener('click', (e) => {
+                const target = e.target.closest('a, button');
+                if (!target) return;
+                
+                const action = target.dataset.action;
+                if (action === 'toggle-menu') {
+                    e.preventDefault();
+                    const dropdown = target.nextElementSibling;
+                    $$('.action-dropdown-content.show').forEach(d => { if (d !== dropdown) d.classList.remove('show'); });
+                    dropdown.classList.toggle('show');
+                } else if (action === 'edit') {
+                    e.preventDefault();
+                    app.editAsset(target.dataset.id);
+                } else if (action === 'delete') {
+                    e.preventDefault();
+                    app.deleteAsset(target.dataset.id);
+                }
+            });
+
+             lucide.createIcons();
+        }
+
+        function renderCoinList() {
+            const container = $('#coin-list-container');
+            if (state.coins.length === 0) { container.innerHTML = `<p class="text-center text-gray-500 p-12">Aucune pièce prédéfinie.</p>`; return; }
+            container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-600 dark:text-gray-300"><thead class="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-100 dark:bg-gray-700/50"><tr><th scope="col" class="px-6 py-3">Nom</th><th scope="col" class="px-6 py-3">Type</th><th scope="col" class="px-6 py-3 text-right">Poids Brut (g)</th><th scope="col" class="px-6 py-3 text-right">Pureté (‰)</th><th scope="col" class="px-6 py-3 text-right">Poids Fin (g)</th><th scope="col" class="px-6 py-3 text-center">Actions</th></tr></thead><tbody>
+            ${state.coins.map(coin => `<tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50"><th scope="row" class="px-6 py-4 font-medium whitespace-nowrap">${coin.name}</th><td class="px-6 py-4">${coin.type === 'gold' ? 'Or' : 'Argent'}</td><td class="px-6 py-4 text-right">${coin.grossWeight} g</td><td class="px-6 py-4 text-right">${coin.purity}</td><td class="px-6 py-4 text-right font-semibold">${getFineWeight(coin).toFixed(3)} g</td><td class="px-6 py-4 text-center"><button class="p-1 text-gray-500 dark:text-gray-400 hover:text-white" onclick="app.editCoin('${coin.id}')"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="p-1 text-gray-500 dark:text-gray-400 hover:text-red-500" onclick="app.deleteCoin('${coin.id}')"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('')}
+            </tbody></table></div>`;
+             lucide.createIcons();
+        }
+
+        function renderPriceHistoryList() {
+            const container = $('#price-history-container');
+            const unit = state.settings.unit;
+            $('#price-history-title').textContent = `Historique des Cours (€ / ${unit})`;
+
+            if (state.priceHistory.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 p-12">Aucun historique de prix.</p>`;
+                return;
+            }
+            
+            const { column, direction } = state.settings.priceHistorySort;
+            const sortedHistory = [...state.priceHistory].sort((a, b) => {
+                let valA = a[column];
+                let valB = b[column];
+                if (column === 'date') return direction === 'asc' ? new Date(valA) - new Date(valB) : new Date(valB) - new Date(valA);
+                return direction === 'asc' ? valA - valB : valB - valA;
+            });
+
+            const headerCols = { date: 'Date', gold: `Prix Or (€/${unit})`, silver: `Prix Argent (€/${unit})`, actions: 'Actions' };
+            const tableHeader = `<thead class="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-100 dark:bg-gray-700/50"><tr>${Object.entries(headerCols).map(([key, title]) => {
+                const isSortable = key !== 'actions';
+                const sortIcon = column === key ? (direction === 'asc' ? 'arrow-up' : 'arrow-down') : 'unfold-vertical';
+                const alignmentClass = ['gold', 'silver'].includes(key) ? 'text-right' : 'text-left';
+                 const cursorClass = isSortable ? 'cursor-pointer' : '';
+                return `<th scope="col" class="px-6 py-3 ${alignmentClass} ${cursorClass}" data-sort="${key}">${title} ${isSortable ? `<i data-lucide="${sortIcon}" class="inline-block w-4 h-4 ml-1"></i>` : ''}</th>`;
+            }).join('')}</tr></thead>`;
+
+            const tableBody = sortedHistory.map(entry => {
+                const goldPricePerGram = (entry.gold || 0) / OUNCE_IN_GRAMS;
+                const silverPricePerGram = (entry.silver || 0) / OUNCE_IN_GRAMS;
+                const displayGold = convertPriceByUnit(goldPricePerGram, unit).toFixed(2);
+                const displaySilver = convertPriceByUnit(silverPricePerGram, unit).toFixed(2);
+
+                return `<tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 font-medium">${new Date(entry.date + 'T00:00:00').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                    <td class="px-6 py-4 text-right">${displayGold} €</td>
+                    <td class="px-6 py-4 text-right">${displaySilver} €</td>
+                    <td class="px-6 py-4 text-center">
+                        <button class="p-1 text-gray-500 dark:text-gray-400 hover:text-white" onclick="app.editPriceHistory('${entry.date}')"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                        <button class="p-1 text-gray-500 dark:text-gray-400 hover:text-red-500" onclick="app.deletePriceHistory('${entry.date}')"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-600 dark:text-gray-300">${tableHeader}<tbody>${tableBody}</tbody></table></div>`;
+            
+            $('#price-history-container thead').addEventListener('click', (e) => {
+                const header = e.target.closest('th');
+                if (header && header.dataset.sort) {
+                    const newSortColumn = header.dataset.sort;
+                    if (state.settings.priceHistorySort.column === newSortColumn) {
+                         state.settings.priceHistorySort.direction = state.settings.priceHistorySort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        state.settings.priceHistorySort.column = newSortColumn;
+                        state.settings.priceHistorySort.direction = 'desc';
+                    }
+                    saveSettings();
+                    renderPriceHistoryList();
+                }
+            });
+
+            lucide.createIcons();
+        }
+        
+        function renderCharts() {
+            if (portfolioEvolutionChart) portfolioEvolutionChart.destroy();
+            if (assetCountChart) assetCountChart.destroy();
+            if (materialDistributionChart) materialDistributionChart.destroy();
+            if (goldHistoryChart) goldHistoryChart.destroy();
+            if (silverHistoryChart) silverHistoryChart.destroy();
+            
+            const isDark = state.settings.theme === 'dark';
+            Chart.defaults.color = isDark ? '#9ca3af' : '#4b5563';
+            Chart.defaults.borderColor = isDark ? '#374151' : '#e5e7eb';
+            
+            const portfolioTerm = state.settings.portfolioTerm;
+            let priceHistoryForPortfolio = state.priceHistory;
+            if (portfolioTerm !== 'all') {
+                const days = parseInt(portfolioTerm);
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - days);
+                priceHistoryForPortfolio = state.priceHistory.filter(entry => new Date(entry.date) >= cutoffDate);
+            }
+
+            const historyData = [];
+            if (priceHistoryForPortfolio.length > 0 && state.assets.length > 0) {
+                 const sortedAssets = [...state.assets].sort((a,b) => new Date(a.date) - new Date(b.date));
+                 priceHistoryForPortfolio.forEach(priceEntry => {
+                    const assetsUpToDate = sortedAssets.filter(a => a.date <= priceEntry.date);
+                    if (assetsUpToDate.length > 0) {
+                        const costAtDate = assetsUpToDate.reduce((sum, asset) => sum + (asset.quantity * asset.price), 0);
+                        const valueAtDate = assetsUpToDate.reduce((sum, asset) => {
+                            const pricePerGram = getPriceForDate(asset.type, priceEntry.date);
+                            return sum + (asset.quantity * getFineWeight(asset) * pricePerGram);
+                        }, 0);
+                        historyData.push({ x: priceEntry.date, yCost: costAtDate, yValue: valueAtDate });
+                    }
+                });
+            }
+            
+            portfolioEvolutionChart = new Chart($('#portfolioEvolutionChart').getContext('2d'), { type: 'line', data: { datasets: [ { label: "Coût d'achat", data: historyData.map(h => ({x: h.x, y: h.yCost})), borderColor: '#f97316', tension: 0.1, fill: false }, { label: 'Valeur', data: historyData.map(h => ({x: h.x, y: h.yValue})), borderColor: '#22c55e', tension: 0.1, fill: false } ] }, options: { maintainAspectRatio: false, responsive: true, scales: { x: { type: 'time', time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy' } }, y: { beginAtZero: true } } } });
+            
+            goldHistoryChart = new Chart($('#goldHistoryChart').getContext('2d'), { type: 'line', data: { datasets: [{ borderColor: '#FFD700' }] }, options: { maintainAspectRatio: false, responsive: true, scales: { x: { type: 'time', time: { unit: 'day' } } } } });
+            updateHistoricalChart('gold', state.settings.goldTerm);
+            
+            silverHistoryChart = new Chart($('#silverHistoryChart').getContext('2d'), { type: 'line', data: { datasets: [{ borderColor: '#C0C0C0' }] }, options: { maintainAspectRatio: false, responsive: true, scales: { x: { type: 'time', time: { unit: 'day' } } } } });
+            updateHistoricalChart('silver', state.settings.silverTerm);
+            
+            const goldValue = state.assets.filter(a => a.type === 'gold').reduce((sum, a) => sum + getCurrentValue(a), 0);
+            const silverValue = state.assets.filter(a => a.type === 'silver').reduce((sum, a) => sum + getCurrentValue(a), 0);
+            materialDistributionChart = new Chart($('#materialDistributionChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Or', 'Argent'], datasets: [{ data: [goldValue, silverValue], backgroundColor: ['#FFD700', '#C0C0C0'], borderWidth: 0 }] }, options: { maintainAspectRatio: false, responsive: true, plugins: { legend: { position: 'bottom' } } } });
+            
+            const assetCounts = state.assets.reduce((acc, asset) => { acc[asset.name] = (acc[asset.name] || 0) + asset.quantity; return acc; }, {});
+            assetCountChart = new Chart($('#assetCountChart').getContext('2d'), { type: 'bar', data: { labels: Object.keys(assetCounts), datasets: [{ label: 'Quantité', data: Object.values(assetCounts), backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } } } });
+        }
+
+        function updateHistoricalChart(metal, term) {
+            const chartInstance = metal === 'gold' ? goldHistoryChart : silverHistoryChart;
+            const selector = `#${metal}-term-selector`;
+            
+            state.settings[`${metal}Term`] = term;
+            saveSettings();
+
+            $$(`${selector} .term-btn`).forEach(btn => btn.classList.remove('active'));
+            $(`${selector} [data-term="${term}"]`).classList.add('active');
+            
+            let filteredHistory = state.priceHistory;
+            if (term !== 'all') {
+                const days = parseInt(term);
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - days);
+                filteredHistory = state.priceHistory.filter(entry => new Date(entry.date) >= cutoffDate);
+            }
+
+            const chartData = filteredHistory.map(point => ({
+                x: point.date,
+                y: convertPriceByUnit((point[metal] || 0) / OUNCE_IN_GRAMS, state.settings.unit)
+            }));
+
+            chartInstance.data.datasets[0].data = chartData;
+            chartInstance.data.datasets[0].label = `Cours de l'${metal === 'gold' ? 'Or' : 'Argent'} (€/${state.settings.unit})`;
+            chartInstance.update();
+        }
+
+        function priceToOunce(price, unit) {
+            if (unit === 'g') return price * OUNCE_IN_GRAMS;
+            if (unit === 'kg') return (price / 1000) * OUNCE_IN_GRAMS;
+            return price; // Default is oz
+        }
+
+        function priceFromOunce(priceInOunce, unit) {
+            if (unit === 'g') return priceInOunce / OUNCE_IN_GRAMS;
+            if (unit === 'kg') return (priceInOunce / OUNCE_IN_GRAMS) * 1000;
+            return priceInOunce; // Default is oz
+        }
+        
+        function showAssetModal(asset = null) {
+            const coinOptions = state.coins.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            const modal = $('#asset-modal');
+            modal.innerHTML = `<div class="card w-full max-w-2xl p-8 m-4"><h2 class="text-2xl font-bold mb-6">${asset ? "Modifier" : "Ajouter"} un actif</h2><form id="asset-form-content"><input type="hidden" id="asset-id" value="${asset ? asset.id : ''}"><div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+                <div class="md:col-span-2"><label for="asset-coin-preset" class="block text-sm font-medium mb-1">Préréglage de pièce (optionnel)</label><select id="asset-coin-preset" class="form-input w-full"><option value="">-- Saisie manuelle --</option>${coinOptions}</select></div>
+                <div class="md:col-span-2"><label for="asset-name" class="block text-sm font-medium mb-1">Nom / Description</label><input type="text" id="asset-name" placeholder="Ex: Napoléon 20F" required class="form-input w-full"></div>
+                <div><label for="asset-type" class="block text-sm font-medium mb-1">Type</label><select id="asset-type" required class="form-input w-full"><option value="gold">Or</option><option value="silver">Argent</option></select></div>
+                <div><label for="asset-millesime" class="block text-sm font-medium mb-1">Millésime</label><input type="number" id="asset-millesime" placeholder="Ex: 1912" class="form-input w-full"></div>
+                <div><label for="asset-grossWeight" class="block text-sm font-medium mb-1">Poids brut (g)</label><input type="number" id="asset-grossWeight" min="0" step="0.001" required class="form-input w-full"></div>
+                <div><label for="asset-purity" class="block text-sm font-medium mb-1">Pureté (‰)</label><input type="number" id="asset-purity" min="0" max="1000" step="0.01" value="1000" required class="form-input w-full"></div>
+                <div><label for="asset-quantity" class="block text-sm font-medium mb-1">Quantité</label><input type="number" id="asset-quantity" min="1" step="1" value="1" required class="form-input w-full"></div>
+                <div><label for="asset-price" class="block text-sm font-medium mb-1">Prix d'achat unitaire (€)</label><input type="number" id="asset-price" min="0" step="0.01" required class="form-input w-full"></div>
+                <div><label for="asset-purchaseLocation" class="block text-sm font-medium mb-1">Lieu d'achat</label><input type="text" id="asset-purchaseLocation" placeholder="Ex: AuCOFFRE.com" class="form-input w-full"></div>
+                <div><label for="asset-sealNumber" class="block text-sm font-medium mb-1">N° de scellé</label><input type="text" id="asset-sealNumber" placeholder="Ex: 123456" class="form-input w-full"></div>
+                <div class="md:col-span-2"><label for="asset-date" class="block text-sm font-medium mb-1">Date d'achat</label><input type="date" id="asset-date" required class="form-input w-full"></div>
+            </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition">Annuler</button><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">Sauvegarder</button></div></form></div>`;
+            if (asset) Object.keys(asset).forEach(key => { const el = $(`#asset-${key}`); if (el) el.value = asset[key] || ''; });
+            else $('#asset-date').valueAsDate = new Date();
+            modal.classList.remove('hidden');
+            $('.modal-cancel').addEventListener('click', () => modal.classList.add('hidden'));
+            $('#asset-form-content').addEventListener('submit', handleAssetFormSubmit);
+            $('#asset-coin-preset').addEventListener('change', (e) => {
+                const coin = state.coins.find(c => c.id === e.target.value);
+                if (coin) { ['name', 'type', 'grossWeight', 'purity', 'millesime'].forEach(k => { if($(`#asset-${k}`)) $(`#asset-${k}`).value = coin[k] || '' }) }
+            });
+        }
+        
+        function handleAssetFormSubmit(e) {
+            e.preventDefault();
+            const id = $('#asset-id').value;
+            const assetData = {
+                type: $('#asset-type').value, name: $('#asset-name').value, 
+                quantity: parseInt($('#asset-quantity').value), price: parseFloat($('#asset-price').value),
+                date: $('#asset-date').value, grossWeight: parseFloat($('#asset-grossWeight').value),
+                purity: parseFloat($('#asset-purity').value), millesime: $('#asset-millesime').value,
+                purchaseLocation: $('#asset-purchaseLocation').value, sealNumber: $('#asset-sealNumber').value,
+            };
+            if (id) { const index = state.assets.findIndex(a => a.id === id); state.assets[index] = { ...state.assets[index], ...assetData }; }
+            else { state.assets.push({ ...assetData, id: `asset_${Date.now()}` }); }
+            state.assets.sort((a, b) => new Date(b.date) - new Date(a.date));
+            saveData(); renderAll(); $('#asset-modal').classList.add('hidden');
+        }
+
+        function showCoinModal(coin = null) {
+            const modal = $('#coin-modal');
+            modal.innerHTML = `<div class="card w-full max-w-lg p-8 m-4"><h2 class="text-2xl font-bold mb-6">${coin ? "Modifier" : "Ajouter"} une pièce</h2><form id="coin-form-content"><input type="hidden" id="coin-id" value="${coin ? coin.id : ''}"><div class="space-y-4">
+                <div><label for="coin-name" class="block text-sm font-medium mb-1">Nom</label><input type="text" id="coin-name" placeholder="Ex: Napoléon 20F" required class="form-input w-full"></div>
+                <div><label for="coin-type" class="block text-sm font-medium mb-1">Type</label><select id="coin-type" required class="form-input w-full"><option value="gold">Or</option><option value="silver">Argent</option></select></div>
+                <div><label for="coin-grossWeight" class="block text-sm font-medium mb-1">Poids brut (g)</label><input type="number" id="coin-grossWeight" min="0" step="0.001" required class="form-input w-full"></div>
+                <div><label for="coin-purity" class="block text-sm font-medium mb-1">Pureté (‰)</label><input type="number" id="coin-purity" min="0" max="1000" step="0.01" value="1000" required class="form-input w-full"></div>
+                <div><label for="coin-millesime" class="block text-sm font-medium mb-1">Millésime (optionnel)</label><input type="number" id="coin-millesime" placeholder="Ex: 1912" class="form-input w-full"></div>
+            </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition">Annuler</button><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">Sauvegarder</button></div></form></div>`;
+            if (coin) Object.keys(coin).forEach(key => { const el = $(`#coin-${key}`); if (el) el.value = coin[key] || ''; });
+            modal.classList.remove('hidden');
+            $('.modal-cancel').addEventListener('click', () => modal.classList.add('hidden'));
+            $('#coin-form-content').addEventListener('submit', handleCoinFormSubmit);
+        }
+
+        function handleCoinFormSubmit(e) {
+            e.preventDefault();
+            const id = $('#coin-id').value;
+            const coinData = { 
+                name: $('#coin-name').value, type: $('#coin-type').value, 
+                grossWeight: parseFloat($('#coin-grossWeight').value), purity: parseFloat($('#coin-purity').value),
+                millesime: $('#coin-millesime').value
+            };
+            if (id) { const index = state.coins.findIndex(c => c.id === id); state.coins[index] = { ...state.coins[index], ...coinData }; }
+            else { state.coins.push({ ...coinData, id: `coin_${Date.now()}` }); }
+            state.coins.sort((a,b) => a.name.localeCompare(b.name));
+            saveData(); renderAll(); $('#coin-modal').classList.add('hidden');
+        }
+
+        function showPriceHistoryModal(entry = null) {
+            const modal = $('#price-history-modal');
+            const isEditing = entry !== null;
+            const currentUnit = state.settings.unit;
+            
+            modal.innerHTML = `<div class="card w-full max-w-lg p-8 m-4">
+                <h2 class="text-2xl font-bold mb-6">${isEditing ? "Modifier" : "Ajouter"} une entrée</h2>
+                <form id="price-form-content">
+                    <input type="hidden" id="price-original-date" value="${isEditing ? entry.date : ''}">
+                    <div class="space-y-4">
+                        <div><label for="price-date" class="block text-sm font-medium mb-1">Date</label><input type="text" id="price-date" required class="form-input w-full"></div>
+                        <div>
+                           <label for="price-unit" class="block text-sm font-medium mb-1">Unité de saisie</label>
+                           <select id="price-unit" class="form-input w-full">
+                               <option value="g">Euro par Gramme (€/g)</option>
+                               <option value="oz">Euro par Once (€/oz)</option>
+                               <option value="kg">Euro par Kilo (€/kg)</option>
+                           </select>
+                        </div>
+                        <div><label for="price-gold" class="block text-sm font-medium mb-1">Prix Or (<span class="price-unit-label">€/${currentUnit}</span>)</label><input type="number" id="price-gold" min="0" step="0.01" required class="form-input w-full"></div>
+                        <div><label for="price-silver" class="block text-sm font-medium mb-1">Prix Argent (<span class="price-unit-label">€/${currentUnit}</span>)</label><input type="number" id="price-silver" min="0" step="0.01" required class="form-input w-full"></div>
+                    </div>
+                    <div class="flex justify-end gap-4 mt-8">
+                        <button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition">Annuler</button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">Sauvegarder</button>
+                    </div>
+                </form>
+            </div>`;
+            
+            flatpickr("#price-date", { dateFormat: "Y-m-d", defaultDate: isEditing ? entry.date : 'today', locale: fr, theme: state.settings.theme === 'dark' ? 'dark-theme' : 'default' });
+            
+            const unitSelect = modal.querySelector('#price-unit');
+            const goldInput = modal.querySelector('#price-gold');
+            const silverInput = modal.querySelector('#price-silver');
+            
+            unitSelect.value = currentUnit;
+            
+            if (isEditing) {
+                goldInput.value = priceFromOunce(entry.gold, currentUnit).toFixed(2);
+                silverInput.value = priceFromOunce(entry.silver, currentUnit).toFixed(2);
+            }
+
+            unitSelect.addEventListener('change', () => {
+                const newUnit = unitSelect.value;
+                modal.querySelectorAll('.price-unit-label').forEach(label => label.textContent = `€/${newUnit}`);
+            });
+
+            modal.classList.remove('hidden');
+            modal.querySelector('.modal-cancel').addEventListener('click', () => modal.classList.add('hidden'));
+            modal.querySelector('#price-form-content').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const date = $('#price-date').value;
+                const originalDate = $('#price-original-date').value;
+                const inputUnit = unitSelect.value;
+                
+                const goldPriceInOunce = priceToOunce(parseFloat(goldInput.value), inputUnit);
+                const silverPriceInOunce = priceToOunce(parseFloat(silverInput.value), inputUnit);
+                
+                const newEntry = { date: date, gold: goldPriceInOunce, silver: silverPriceInOunce };
+                
+                let tempHistory = state.priceHistory;
+                if (originalDate && originalDate !== date) { tempHistory = tempHistory.filter(p => p.date !== originalDate); }
+                
+                const existingIndex = tempHistory.findIndex(p => p.date === date);
+                if (existingIndex > -1) { tempHistory[existingIndex] = newEntry; } 
+                else { tempHistory.push(newEntry); }
+                
+                state.priceHistory = tempHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
+                saveData(); renderAll(); modal.classList.add('hidden');
+            });
+        }
+        function showConfirmModal(message, callback, confirmText = 'Supprimer', confirmClass = 'bg-red-600 hover:bg-red-700', isDestructive = true) {
+            const modal = $('#confirm-modal');
+            const iconHtml = isDestructive 
+                ? `<div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 mb-4"><i data-lucide="alert-triangle" class="h-6 w-6 text-red-500"></i></div>`
+                : `<div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50 mb-4"><i data-lucide="check-circle" class="h-6 w-6 text-green-500"></i></div>`;
+
+            modal.innerHTML = `<div class="card w-full max-w-md p-6 m-4 text-center">${iconHtml}<h3 class="text-lg font-medium leading-6">Confirmation requise</h3><div class="mt-2"><p class="text-sm text-gray-600 dark:text-gray-400">${message}</p></div><div class="mt-6 flex justify-center gap-4"><button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition">Annuler</button><button type="button" id="confirm-ok-btn" class="${confirmClass} text-white font-semibold py-2 px-6 rounded-lg transition">${confirmText}</button></div></div>`;
+            lucide.createIcons();
+            modal.classList.remove('hidden');
+            if (callback) {
+                confirmCallback = callback;
+                $('#confirm-ok-btn').addEventListener('click', () => { if (confirmCallback) confirmCallback(); modal.classList.add('hidden'); });
+            } else {
+                $('#confirm-ok-btn').addEventListener('click', () => modal.classList.add('hidden'));
+                 $('.modal-cancel').classList.add('hidden');
+            }
+            $('.modal-cancel').addEventListener('click', () => modal.classList.add('hidden'));
+        }
+        
+        window.app = {
+            editAsset: (id) => { const asset = state.assets.find(a => a.id === id); if (asset) showAssetModal(asset); },
+            deleteAsset: (id) => showConfirmModal('Êtes-vous sûr de vouloir supprimer cet actif ?', () => { state.assets = state.assets.filter(a => a.id !== id); saveData(); renderAll(); }),
+            editCoin: (id) => { const coin = state.coins.find(c => c.id === id); if (coin) showCoinModal(coin); },
+            deleteCoin: (id) => showConfirmModal('Êtes-vous sûr de vouloir supprimer cette pièce ?', () => { state.coins = state.coins.filter(c => c.id !== id); saveData(); renderAll(); }),
+            editPriceHistory: (date) => { const entry = state.priceHistory.find(p => p.date === date); if (entry) showPriceHistoryModal(entry); },
+            deletePriceHistory: (date) => showConfirmModal('Supprimer cette entrée de prix ?', () => { state.priceHistory = state.priceHistory.filter(p => p.date !== date); saveData(); renderAll(); })
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
+

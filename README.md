@@ -9,6 +9,13 @@ Application web open source : inventaire complet, suivi du cours du jour, statis
 
 💗 Si ce projet vous est utile, vous pouvez me soutenir ici : https://buymeacoffee.com/eknex
 
+
+
+<img width="1550" height="555" alt="image" src="https://github.com/user-attachments/assets/4a9d714c-9a8b-416a-9d8d-9c89b1d91bd7" />
+
+
+
+
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 

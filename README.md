@@ -104,6 +104,40 @@ Accède à la page par une vraie URL HTTP (et plus par file://)
 
 
 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+Historique des versions
+Version 4.1
+
+Ajout de l'affichage du cours du jour en direct.
+Correction et fiabilisation de l'ajout automatique du cours du jour à la connexion.
+Version 4.0
+
+Déplacement de la gestion des colonnes dans les paramètres.
+Version 3.9
+
+Correction du bug d'affichage des prix et graphiques.
+Menu des colonnes de l'inventaire rendu compact.
+Version 3.8
+
+Menu déroulant pour les colonnes.
+Tri ajouté à l'historique des prix.
+Version 3.7
+
+Menu déroulant pour les colonnes de l'inventaire.
+Ajout du tri sur l'historique des prix.
+Version 3.6
+
+Ajout de tuiles de valeur par matière sur le tableau de bord.
+Version 3.5
+
+Ajout du sélecteur de période pour le graphique d'évolution.
+Ajout des colonnes de poids dans l'inventaire.
+Bouton d'ajout rapide du cours du jour.
+
+
 
 ☕ Soutenir
 Ce projet est open source.

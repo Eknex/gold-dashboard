@@ -198,19 +198,27 @@
         <div class="container mx-auto p-4 md:p-8">
             <header class="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h1 class="text-3xl font-bold">Tableau de Bord Métaux Précieux</h1>
-                <div class="flex items-center gap-4">
-                    <div id="saving-indicator" class="saving-indicator opacity-0 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                        <i data-lucide="save" class="w-4 h-4"></i>
-                        <span id="saving-status">Enregistré</span>
+                <div class="flex flex-col items-end gap-2">
+                    <div class="flex items-center gap-4">
+                         <div id="saving-indicator" class="saving-indicator opacity-0 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            <span id="saving-status">Enregistré</span>
+                        </div>
+                        <a href="https://buymeacoffee.com/eknex" target="_blank" class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
+                            <span class="text-xl">☕</span>
+                            <span class="hidden sm:inline">Soutenir</span>
+                        </a>
                     </div>
-                    <a href="https://buymeacoffee.com/eknex" target="_blank" class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
-                        <span class="text-xl">☕</span>
-                        <span class="hidden sm:inline">Soutenir</span>
-                    </a>
-                    <div id="spot-price-header" class="text-sm text-gray-500 dark:text-gray-400">
-                        Dernier cours enregistré (<span id="spot-time">...</span>): 
-                        <span class="font-semibold text-yellow-500">Or: <span id="spot-gold">...</span> €/<span class="unit-display">oz</span></span> | 
-                        <span class="font-semibold text-gray-500 dark:text-gray-300">Argent: <span id="spot-silver">...</span> €/<span class="unit-display">oz</span></span>
+                   
+                    <div class="w-full text-right">
+                        <div id="spot-price-header" class="text-sm text-gray-500 dark:text-gray-400">
+                            Dernier cours enregistré (<span id="spot-time">...</span>): 
+                            <span class="font-semibold text-yellow-500">Or: <span id="spot-gold">...</span> €/<span class="unit-display">oz</span></span> | 
+                            <span class="font-semibold text-gray-500 dark:text-gray-300">Argent: <span id="spot-silver">...</span> €/<span class="unit-display">oz</span></span>
+                        </div>
+                         <div id="live-spot-price-container" class="text-sm text-gray-600 dark:text-gray-300 mt-2 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-center" style="display: none;">
+                            <!-- Live price will be injected here -->
+                        </div>
                     </div>
                 </div>
             </header>
@@ -456,6 +464,12 @@
         async function checkPinStatus() {
             try {
                 const response = await apiRequest({ action: 'status' });
+                if (response && response.error) {
+                    showPinError('Erreur Critique', response.error);
+                    $$('.pin-input').forEach(input => input.disabled = true);
+                    return;
+                }
+                
                 if (!response.writable) {
                     showPinError('Erreur de Permission', 'Le serveur ne peut pas écrire dans ce dossier.<br>Veuillez corriger les permissions sur votre serveur Unraid.');
                     $$('.pin-input').forEach(input => input.disabled = true);
@@ -467,14 +481,14 @@
                 $('#pin-subtitle').textContent = state.serverPinIsSet ? 'Pour accéder à vos données.' : 'Ce code protégera l\'accès à cette interface.';
                 $$('.pin-input')[0].focus();
             } catch (e) {
-                showPinError('Erreur de connexion', 'Impossible de contacter le serveur. Vérifiez la console.');
+                showPinError('Erreur de connexion', 'Impossible de contacter le serveur. Vérifiez la console et l\'état de PHP/Apache.');
                 console.error("Erreur de connexion à l'API:", e);
             }
         }
         
         function showPinError(title, subtitle) {
             $('#pin-title').textContent = title;
-            $('#pin-subtitle').innerHTML = subtitle;
+            $('#pin-subtitle').innerHTML = sanitize(subtitle);
         }
 
         function loadSettings() {
@@ -531,8 +545,12 @@
         async function unlockApp() {
             $('#pin-screen').classList.add('hidden');
             $('#app-content').classList.remove('hidden');
+            
             await loadData();
             await addTodaysPrice(false);
+            await fetchAndDisplayLiveSpotPrice();
+            
+            // Re-load data in case it was updated by addTodaysPrice
             await loadData(); 
             renderAll();
         }
@@ -567,6 +585,10 @@
         async function loadData() {
             try {
                 const data = await apiRequest({ action: 'get_data', pinHash: state.pinHash });
+                if (data.error) {
+                    showConfirmModal(data.error, () => location.reload(), "Recharger");
+                    return;
+                }
                 state.assets = data.assets || [];
                 state.coins = data.coins || [];
                 state.priceHistory = data.priceHistory || [];
@@ -622,7 +644,10 @@
                 $('#spot-price-header').innerHTML = `<span class="text-sm text-gray-500 dark:text-gray-400">Aucun historique de prix trouvé. Ajoutez une entrée.</span>`;
                 return;
             }
-            const lastEntry = state.priceHistory[state.priceHistory.length - 1];
+            
+            // Sort to make sure we get the latest
+            const sortedHistory = [...state.priceHistory].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const lastEntry = sortedHistory[0];
 
             const goldPricePerGram = (lastEntry.gold || 0) / OUNCE_IN_GRAMS;
             const silverPricePerGram = (lastEntry.silver || 0) / OUNCE_IN_GRAMS;
@@ -638,8 +663,40 @@
             $('#spot-time').textContent = new Date(lastEntry.date+'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         }
         
+        async function fetchAndDisplayLiveSpotPrice() {
+            const container = $('#live-spot-price-container');
+            if (!container) return;
+            
+            container.style.display = 'block';
+            container.innerHTML = `<span class="flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 animate-spin"></i>Chargement du cours du jour...</span>`;
+            lucide.createIcons();
+            
+            try {
+                const response = await apiRequest({ action: 'get_current_spot' });
+                if (response.success) {
+                    const goldPricePerGram = (response.gold || 0) / OUNCE_IN_GRAMS;
+                    const silverPricePerGram = (response.silver || 0) / OUNCE_IN_GRAMS;
+                    const unit = state.settings.unit;
+                    
+                    const displayGold = convertPriceByUnit(goldPricePerGram, unit).toFixed(2);
+                    const displaySilver = convertPriceByUnit(silverPricePerGram, unit).toFixed(2);
+                    
+                    container.innerHTML = `<strong>Cours du jour :</strong> 
+                        <span class="font-semibold text-yellow-500">Or: ${displayGold} €/<span class="unit-display">${unit}</span></span> | 
+                        <span class="font-semibold text-gray-500 dark:text-gray-300">Argent: ${displaySilver} €/<span class="unit-display">${unit}</span></span>`;
+                } else {
+                    container.innerHTML = `<span class="text-red-500">Erreur cours du jour: ${sanitize(response.error || 'Inconnue')}</span>`;
+                }
+            } catch(e) {
+                container.innerHTML = `<span class="text-red-500">Impossible de charger le cours du jour.</span>`;
+                console.error("Erreur live spot:", e);
+            }
+        }
+
+
         function renderVersionHistory() {
              const versions = [
+                { version: "4.1", changes: ["Ajout de l'affichage du cours du jour en direct.", "Correction et fiabilisation de l'ajout automatique du cours du jour à la connexion."] },
                 { version: "4.0", changes: ["Déplacement de la gestion des colonnes dans les paramètres."] },
                 { version: "3.9", changes: ["Correction du bug d'affichage des prix et graphiques.", "Menu des colonnes de l'inventaire rendu compact."] },
                 { version: "3.8", changes: ["Menu déroulant pour les colonnes.", "Tri ajouté à l'historique des prix."] },
@@ -658,7 +715,9 @@
                 await loadData();
                 renderAll();
                  if(showConfirmation) {
-                    if (response.updated) {
+                    if (response.error) {
+                        showConfirmModal(`Erreur: ${sanitize(response.error)}`, null, "OK", "bg-red-600 hover:bg-red-700", true);
+                    } else if (response.updated) {
                          showConfirmModal("Le cours du jour a été ajouté/mis à jour avec succès.", null, "OK", "bg-green-600 hover:bg-green-700", false);
                     } else {
                          showConfirmModal("L'historique est déjà à jour avec le cours d'aujourd'hui.", null, "OK", "bg-blue-600", false);
@@ -666,7 +725,7 @@
                 }
             } catch (e) {
                 console.error("Erreur lors de l'ajout du prix du jour", e);
-                if(showConfirmation) showConfirmModal("Erreur: Impossible de récupérer le cours du jour. Le service externe est peut-être indisponible.", null, "OK", "bg-red-600 hover:bg-red-700", true);
+                if(showConfirmation) showConfirmModal("Erreur: Impossible de récupérer le cours du jour. Le service externe est peut-être indisponible ou une erreur est survenue.", null, "OK", "bg-red-600 hover:bg-red-700", true);
             }
         }
 
@@ -780,7 +839,7 @@
                 { title: 'Poids Fin Or', value: `${goldWeight.toFixed(3)} g`, icon: 'database', iconColor: 'text-yellow-400' },
                 { title: 'Poids Fin Argent', value: `${silverWeight.toFixed(3)} g`, icon: 'database', iconColor: 'text-gray-400' }
             ];
-            $('#summary-cards').innerHTML = cards.map(card => `<div class="card p-6"><div class="flex items-center justify-between"><h3 class="text-lg font-medium text-gray-600 dark:text-gray-300">${card.title}</h3><i data-lucide="${card.icon}" class="w-6 h-6 ${card.iconColor || 'text-blue-500'}"></i></div><p class="text-3xl font-bold mt-2">${card.value}</p>${card.sub ? `<p class="text-sm mt-1 ${card.subColor}">${card.sub}</p>` : ''}</div>`).join('');
+            $('#summary-cards').innerHTML = cards.map(card => `<div class="card p-6"><div class="flex items-center justify-between"><h3 class="text-lg font-medium text-gray-600 dark:text-gray-300">${card.title}</h3><i data-lucide="${card.icon}" class="w-6 h-6 ${card.iconColor || 'text-blue-500'}"></i></div><p class="text-3xl font-bold mt-2">${card.value}</p>${card.sub ? `<p class="text-sm mt-1 ${card.subColor}">${sanitize(card.sub)}</p>` : ''}</div>`).join('');
         }
 
         function renderColumnToggleMenu() {
@@ -872,13 +931,13 @@
                 const totalFineWeight = asset.quantity * getFineWeight(asset);
 
                 const cells = {
-                    name: `<td class="px-6 py-4 font-medium whitespace-nowrap ${visibleColumns.name ? '' : 'hidden'}">${asset.name}<div class="text-xs text-gray-500">${asset.millesime || ''}</div></td>`,
+                    name: `<td class="px-6 py-4 font-medium whitespace-nowrap ${visibleColumns.name ? '' : 'hidden'}">${sanitize(asset.name)}<div class="text-xs text-gray-500">${sanitize(asset.millesime || '')}</div></td>`,
                     type: `<td class="px-6 py-4 ${visibleColumns.type ? '' : 'hidden'}"><span class="px-2 py-1 text-xs font-semibold rounded-full ${asset.type === 'gold' ? 'bg-yellow-400/20 text-yellow-400' : 'bg-gray-400/20 text-gray-300'}">${asset.type === 'gold' ? 'Or' : 'Argent'}</span></td>`,
                     date: `<td class="px-6 py-4 ${visibleColumns.date ? '' : 'hidden'}">${new Date(asset.date).toLocaleDateString('fr-FR')}</td>`,
                     totalGrossWeight: `<td class="px-6 py-4 text-right ${visibleColumns.totalGrossWeight ? '' : 'hidden'}">${totalGrossWeight.toFixed(3)} g</td>`,
                     totalFineWeight: `<td class="px-6 py-4 text-right ${visibleColumns.totalFineWeight ? '' : 'hidden'}">${totalFineWeight.toFixed(3)} g</td>`,
-                    purchaseLocation: `<td class="px-6 py-4 ${visibleColumns.purchaseLocation ? '' : 'hidden'}">${asset.purchaseLocation || ''}</td>`,
-                    sealNumber: `<td class="px-6 py-4 ${visibleColumns.sealNumber ? '' : 'hidden'}">${asset.sealNumber || ''}</td>`,
+                    purchaseLocation: `<td class="px-6 py-4 ${visibleColumns.purchaseLocation ? '' : 'hidden'}">${sanitize(asset.purchaseLocation || '')}</td>`,
+                    sealNumber: `<td class="px-6 py-4 ${visibleColumns.sealNumber ? '' : 'hidden'}">${sanitize(asset.sealNumber || '')}</td>`,
                     quantity: `<td class="px-6 py-4 text-right ${visibleColumns.quantity ? '' : 'hidden'}">${asset.quantity}</td>`,
                     totalCost: `<td class="px-6 py-4 text-right ${visibleColumns.totalCost ? '' : 'hidden'}">${totalCost.toFixed(2)} €</td>`,
                     currentValue: `<td class="px-6 py-4 text-right ${visibleColumns.currentValue ? '' : 'hidden'}">${currentValue.toFixed(2)} €</td>`,
@@ -939,7 +998,7 @@
             const container = $('#coin-list-container');
             if (state.coins.length === 0) { container.innerHTML = `<p class="text-center text-gray-500 p-12">Aucune pièce prédéfinie.</p>`; return; }
             container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-600 dark:text-gray-300"><thead class="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-100 dark:bg-gray-700/50"><tr><th scope="col" class="px-6 py-3">Nom</th><th scope="col" class="px-6 py-3">Type</th><th scope="col" class="px-6 py-3 text-right">Poids Brut (g)</th><th scope="col" class="px-6 py-3 text-right">Pureté (‰)</th><th scope="col" class="px-6 py-3 text-right">Poids Fin (g)</th><th scope="col" class="px-6 py-3 text-center">Actions</th></tr></thead><tbody>
-            ${state.coins.map(coin => `<tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50"><th scope="row" class="px-6 py-4 font-medium whitespace-nowrap">${coin.name}</th><td class="px-6 py-4">${coin.type === 'gold' ? 'Or' : 'Argent'}</td><td class="px-6 py-4 text-right">${coin.grossWeight} g</td><td class="px-6 py-4 text-right">${coin.purity}</td><td class="px-6 py-4 text-right font-semibold">${getFineWeight(coin).toFixed(3)} g</td><td class="px-6 py-4 text-center"><button class="p-1 text-gray-500 dark:text-gray-400 hover:text-white" onclick="app.editCoin('${coin.id}')"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="p-1 text-gray-500 dark:text-gray-400 hover:text-red-500" onclick="app.deleteCoin('${coin.id}')"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('')}
+            ${state.coins.map(coin => `<tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50"><th scope="row" class="px-6 py-4 font-medium whitespace-nowrap">${sanitize(coin.name)}</th><td class="px-6 py-4">${coin.type === 'gold' ? 'Or' : 'Argent'}</td><td class="px-6 py-4 text-right">${coin.grossWeight} g</td><td class="px-6 py-4 text-right">${coin.purity}</td><td class="px-6 py-4 text-right font-semibold">${getFineWeight(coin).toFixed(3)} g</td><td class="px-6 py-4 text-center"><button class="p-1 text-gray-500 dark:text-gray-400 hover:text-white" onclick="app.editCoin('${coin.id}')"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="p-1 text-gray-500 dark:text-gray-400 hover:text-red-500" onclick="app.deleteCoin('${coin.id}')"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('')}
             </tbody></table></div>`;
              lucide.createIcons();
         }
@@ -1101,7 +1160,7 @@
         }
         
         function showAssetModal(asset = null) {
-            const coinOptions = state.coins.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            const coinOptions = state.coins.map(c => `<option value="${c.id}">${sanitize(c.name)}</option>`).join('');
             const modal = $('#asset-modal');
             modal.innerHTML = `<div class="card w-full max-w-2xl p-8 m-4"><h2 class="text-2xl font-bold mb-6">${asset ? "Modifier" : "Ajouter"} un actif</h2><form id="asset-form-content"><input type="hidden" id="asset-id" value="${asset ? asset.id : ''}"><div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
                 <div class="md:col-span-2"><label for="asset-coin-preset" class="block text-sm font-medium mb-1">Préréglage de pièce (optionnel)</label><select id="asset-coin-preset" class="form-input w-full"><option value="">-- Saisie manuelle --</option>${coinOptions}</select></div>
@@ -1249,7 +1308,7 @@
                 ? `<div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 mb-4"><i data-lucide="alert-triangle" class="h-6 w-6 text-red-500"></i></div>`
                 : `<div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50 mb-4"><i data-lucide="check-circle" class="h-6 w-6 text-green-500"></i></div>`;
 
-            modal.innerHTML = `<div class="card w-full max-w-md p-6 m-4 text-center">${iconHtml}<h3 class="text-lg font-medium leading-6">Confirmation requise</h3><div class="mt-2"><p class="text-sm text-gray-600 dark:text-gray-400">${message}</p></div><div class="mt-6 flex justify-center gap-4"><button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition">Annuler</button><button type="button" id="confirm-ok-btn" class="${confirmClass} text-white font-semibold py-2 px-6 rounded-lg transition">${confirmText}</button></div></div>`;
+            modal.innerHTML = `<div class="card w-full max-w-md p-6 m-4 text-center">${iconHtml}<h3 class="text-lg font-medium leading-6">Confirmation requise</h3><div class="mt-2"><p class="text-sm text-gray-600 dark:text-gray-400">${sanitize(message)}</p></div><div class="mt-6 flex justify-center gap-4"><button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition">Annuler</button><button type="button" id="confirm-ok-btn" class="${confirmClass} text-white font-semibold py-2 px-6 rounded-lg transition">${confirmText}</button></div></div>`;
             lucide.createIcons();
             modal.classList.remove('hidden');
             if (callback) {
@@ -1276,4 +1335,3 @@
     </script>
 </body>
 </html>
-

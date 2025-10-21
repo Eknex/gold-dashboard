@@ -34,6 +34,9 @@ switch ($action) {
     case 'save_data':
         handleSaveData($input);
         break;
+    case 'get_current_spot': // Nouvelle action pour le cours en direct
+        handleGetCurrentSpot();
+        break;
     case 'update_spot_history':
         handleUpdateSpotHistory($input);
         break;
@@ -103,51 +106,42 @@ function isPinValid($sessionHash) {
     return hash_equals($storedHash, $sessionHash);
 }
 
-/**
- * Lit le fichier de données de manière sécurisée avec un verrou partagé.
- * Empêche la lecture pendant qu'une écriture est en cours.
- */
 function readDataFile() {
     global $dataFile;
     if (!file_exists($dataFile)) {
         return ['assets' => [], 'coins' => [], 'priceHistory' => []];
     }
-    
+
     $fp = fopen($dataFile, 'r');
     if (!$fp) {
         return ['assets' => [], 'coins' => [], 'priceHistory' => []];
     }
 
-    flock($fp, LOCK_SH); // Verrou partagé (lecture)
+    flock($fp, LOCK_SH);
     $content = stream_get_contents($fp);
-    flock($fp, LOCK_UN); // Libération du verrou
+    flock($fp, LOCK_UN);
     fclose($fp);
-    
+
     return json_decode($content, true) ?: ['assets' => [], 'coins' => [], 'priceHistory' => []];
 }
 
-/**
- * Écrit dans le fichier de données de manière atomique et sécurisée.
- * Utilise un fichier temporaire et un verrou exclusif pour éviter la corruption.
- */
 function writeDataFile($data) {
     global $dataFile;
     $tmpFile = $dataFile . '.tmp';
-    
+
     $fp = fopen($tmpFile, 'w');
     if (!$fp) {
         throw new Exception("Impossible de créer le fichier temporaire.");
     }
-    
-    flock($fp, LOCK_EX); // Verrou exclusif (écriture)
+
+    flock($fp, LOCK_EX);
     fwrite($fp, json_encode($data, JSON_PRETTY_PRINT));
     fflush($fp);
-    flock($fp, LOCK_UN); // Libération du verrou
+    flock($fp, LOCK_UN);
     fclose($fp);
 
     chmod($tmpFile, 0664);
 
-    // L'opération de renommage est atomique
     if (!rename($tmpFile, $dataFile)) {
         unlink($tmpFile);
         throw new Exception("Impossible de remplacer le fichier de données.");
@@ -183,37 +177,77 @@ function handleSaveData($input) {
 }
 
 /**
- * Récupère les données d'un service externe de manière robuste avec cURL.
- * Inclut un timeout pour éviter de bloquer l'application.
+ * Récupère les cours depuis une API externe en essayant plusieurs méthodes.
+ * @return array|null Les données décodées ou un tableau d'erreur.
  */
 function fetchSpotFromExternal() {
     $url = "https://data-asg.goldprice.org/dbXRates/EUR";
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // Timeout pour la connexion
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10); // Timeout total pour la requête
+    $error_details = [];
 
-    $response = curl_exec($ch);
-    
-    if (curl_errno($ch)) {
-        // Erreur cURL (ex: timeout, impossible de résoudre le nom de domaine)
+    // Méthode 1: cURL (préférée)
+    if (function_exists('curl_init')) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        
+        $response = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (!curl_errno($ch) && $httpcode == 200) {
+            curl_close($ch);
+            return json_decode($response, true);
+        }
+        $error_details[] = "cURL: " . curl_error($ch) . " (Code HTTP: " . $httpcode . ")";
         curl_close($ch);
-        return null;
     }
 
-    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    // Méthode 2: file_get_contents (secours)
+    // Utile si cURL a des problèmes de certificats SSL dans le conteneur.
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36\r\n",
+            'timeout' => 15,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ]
+    ]);
 
-    if ($httpcode < 200 || $httpcode >= 300) {
-        // Erreur HTTP (ex: 404, 500)
-        return null;
+    $response = @file_get_contents($url, false, $context);
+    if ($response !== false) {
+        return json_decode($response, true);
     }
+    
+    $last_error = error_get_last();
+    $error_details[] = "file_get_contents: " . ($last_error['message'] ?? 'Échec sans message');
 
-    return json_decode($response, true);
+    return ['error' => "Échec de la récupération externe. Détails: " . implode(' | ', $error_details)];
 }
+
+
+function handleGetCurrentSpot() {
+    $spotData = fetchSpotFromExternal();
+
+    if (isset($spotData['error'])) {
+        echo json_encode(['success' => false, 'error' => $spotData['error']]);
+        exit;
+    }
+     if ($spotData && isset($spotData['items'][0]['xauPrice'], $spotData['items'][0]['xagPrice'])) {
+        echo json_encode([
+            'success' => true,
+            'gold' => $spotData['items'][0]['xauPrice'],
+            'silver' => $spotData['items'][0]['xagPrice']
+        ]);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Réponse invalide de l\'API externe.']);
+    }
+}
+
 
 function handleUpdateSpotHistory($input) {
     if (!(isset($input['pinHash']) && isPinValid($input['pinHash']))) {
@@ -224,48 +258,46 @@ function handleUpdateSpotHistory($input) {
     try {
         $data = readDataFile();
         $today = date('Y-m-d');
-        $lastEntryDate = null;
-
-        if (!empty($data['priceHistory'])) {
-            $lastEntry = end($data['priceHistory']);
-            $lastEntryDate = $lastEntry['date'];
-        }
         
-        if ($lastEntryDate !== $today) {
+        $dateExists = false;
+        if (!empty($data['priceHistory'])) {
+            foreach ($data['priceHistory'] as $entry) {
+                if ($entry['date'] === $today) {
+                    $dateExists = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$dateExists) {
             $spotData = fetchSpotFromExternal();
-            if ($spotData && isset($spotData['items'][0])) {
+            
+            if (isset($spotData['error'])) {
+                header('HTTP/1.1 500 Internal Server Error');
+                echo json_encode(['success' => false, 'updated' => false, 'error' => $spotData['error']]);
+                exit;
+            }
+            if ($spotData && isset($spotData['items'][0]['xauPrice'], $spotData['items'][0]['xagPrice'])) {
                 $rates = $spotData['items'][0];
                 
-                $dateExists = false;
-                if(isset($data['priceHistory'])) {
-                    foreach($data['priceHistory'] as $entry) {
-                        if ($entry['date'] === $today) {
-                            $dateExists = true;
-                            break;
-                        }
-                    }
-                }
-                
-                if (!$dateExists) {
-                     $data['priceHistory'][] = [
-                        'date' => $today,
-                        'gold' => $rates['xauPrice'],
-                        'silver' => $rates['xagPrice']
-                    ];
-                    usort($data['priceHistory'], function($a, $b) {
-                        return strtotime($a['date']) - strtotime($b['date']);
-                    });
-                    writeDataFile($data);
-                    echo json_encode(['success' => true, 'updated' => true, 'message' => 'Historique des prix mis à jour.']);
-                    exit;
-                }
+                $data['priceHistory'][] = [
+                    'date' => $today,
+                    'gold' => $rates['xauPrice'],
+                    'silver' => $rates['xagPrice']
+                ];
+                usort($data['priceHistory'], function($a, $b) {
+                    return strtotime($a['date']) - strtotime($b['date']);
+                });
+                writeDataFile($data);
+                echo json_encode(['success' => true, 'updated' => true, 'message' => 'Historique des prix mis à jour.']);
+                exit;
             } else {
                 header('HTTP/1.1 500 Internal Server Error');
-                echo json_encode(['success' => false, 'updated' => false, 'message' => 'Impossible de récupérer les nouveaux cours.']);
+                echo json_encode(['success' => false, 'updated' => false, 'error' => 'Réponse invalide ou incomplète de l\'API externe.']);
                 exit;
             }
         }
-        
+
         echo json_encode(['success' => true, 'updated' => false, 'message' => 'Historique déjà à jour.']);
 
     } catch (Exception $e) {
